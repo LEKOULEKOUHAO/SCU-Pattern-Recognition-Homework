@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn.datasets import make_blobs
-import matplotlib.pyplot as plt
+
 # 生成高斯分布数据
 X, y = make_blobs(n_samples=100, centers=2, cluster_std=1.0, random_state=42)
 # K-Means 实现
@@ -29,11 +28,50 @@ plt.scatter(kmeans.centroids[:, 0], kmeans.centroids[:, 1], c='red', s=200, alph
 plt.title("K-Means Clustering")
 plt.show()
 
-from sklearn.cluster import DBSCAN
-# 运行 DBSCAN
-dbscan = DBSCAN(eps=0.5, min_samples=5)
-labels_dbscan = dbscan.fit_predict(X)
+class DBSCAN:
+    def __init__(self, eps=0.5, min_samples=5):
+        self.eps = eps
+        self.min_samples = min_samples
+
+    def fit_predict(self, X):
+        labels = -np.ones(X.shape[0])
+        cluster_id = 0
+        for i in range(X.shape[0]):
+            if labels[i] != -1:
+                continue
+            neighbors = self._region_query(X, i)
+            if len(neighbors) < self.min_samples:
+                labels[i] = -1  # Mark as noise
+            else:
+                self._expand_cluster(X, labels, i, neighbors, cluster_id)
+                cluster_id += 1
+        return labels
+
+    def _region_query(self, X, point_idx):
+        neighbors = []
+        for i in range(X.shape[0]):
+            if np.linalg.norm(X[point_idx] - X[i]) < self.eps:
+                neighbors.append(i)
+        return neighbors
+
+    def _expand_cluster(self, X, labels, point_idx, neighbors, cluster_id):
+        labels[point_idx] = cluster_id
+        i = 0
+        while i < len(neighbors):
+            neighbor_idx = neighbors[i]
+            if labels[neighbor_idx] == -1:
+                labels[neighbor_idx] = cluster_id
+            elif labels[neighbor_idx] == -1:
+                labels[neighbor_idx] = cluster_id
+                new_neighbors = self._region_query(X, neighbor_idx)
+                if len(new_neighbors) >= self.min_samples:
+                    neighbors += new_neighbors
+            i += 1
+
+# 运行DBSCAN
+dbscan_custom = DBSCAN(eps=0.5, min_samples=5)
+labels_dbscan_custom = dbscan_custom.fit_predict(X)
 # 绘制聚类结果
-plt.scatter(X[:, 0], X[:, 1], c=labels_dbscan, s=30, cmap='viridis')
-plt.title("DBSCAN Clustering")
+plt.scatter(X[:, 0], X[:, 1], c=labels_dbscan_custom, s=30, cmap='viridis')
+plt.title("Custom DBSCAN Clustering")
 plt.show()
