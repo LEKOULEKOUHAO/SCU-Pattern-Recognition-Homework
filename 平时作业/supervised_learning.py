@@ -1,131 +1,104 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-# 随机生成两类样本
-np.random.seed(0)  # For reproducibility
-class1 = np.random.randn(50, 2) + np.array([2, 2])  # 类1
-class2 = np.random.randn(50, 2) + np.array([7, 7])  # 类2
-# 合并样本并生成标签
-X = np.vstack((class1, class2))
-y = np.hstack((np.zeros(50), np.ones(50)))
-# 分割训练集和测试集
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-# 绘图函数
-def plot_decision_boundary(X, y, model):
-    plt.scatter(X[:, 0], X[:, 1], c=y, s=50, cmap='spring')
-    ax = plt.gca()
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-    xx, yy = np.meshgrid(np.linspace(xlim[0], xlim[1], 100),
-                         np.linspace(ylim[0], ylim[1], 100))
-    
-    Z = model.predict(np.c_[xx.ravel(), yy.ravel()])
-    Z = Z.reshape(xx.shape)
-    ax.contourf(xx, yy, Z, alpha=0.2, cmap='spring')
+# 生成两类样本
+np.random.seed(0)  # 保证结果可重复
+class1 = np.random.randn(100, 2) + np.array([2, 2])
+class2 = np.random.randn(100, 2) + np.array([-2, -2])
+
+# 合并样本并打乱顺序
+data = np.concatenate((class1, class2))
+labels = np.concatenate((np.ones(100), np.zeros(100)))
+indices = np.random.permutation(200)
+data = data[indices]
+labels = labels[indices]
+
+# 划分训练集和测试集 (80%训练，20%测试)
+train_data = data[:160]
+train_labels = labels[:160]
+test_data = data[160:]
+test_labels = labels[160:]
 
 # 感知器实现
-class Perceptron:
-    def __init__(self, learning_rate=0.01, n_iters=1000):
-        self.lr = learning_rate
-        self.n_iters = n_iters
-        self.weights = None
-        self.bias = None
-    def fit(self, X, y):
-        n_features = X.shape[1]
-        self.weights = np.zeros(n_features)
-        self.bias = 0
-        for _ in range(self.n_iters):
-            for index, x_i in enumerate(X):
-                linear_output = np.dot(x_i, self.weights) + self.bias
-                y_predicted = self.activation_function(linear_output)
-                update = self.lr * (y[index] - y_predicted)
-                self.weights += update * x_i
-                self.bias += update
-    def activation_function(self, x):
-        return np.where(x >= 0, 1, 0)
-    def predict(self, X):
-        linear_output = np.dot(X, self.weights) + self.bias
-        return self.activation_function(linear_output)
-# 使用感知器进行训练和预测
-model = Perceptron()
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
+def Perceptron(X, y, epochs=100, learning_rate=0.1):
+    n, m = X.shape
+    w = np.zeros(m)
+    b = 0
+    for _ in range(epochs):
+        for i in range(n):
+            z = np.dot(X[i], w) + b
+            y_pred = 1 if z > 0 else 0
+            if y_pred != y[i]:
+                w += learning_rate * (y[i] - y_pred) * X[i]
+                b += learning_rate * (y[i] - y_pred)
+    return w, b
 
-# 可视化
-plot_decision_boundary(X, y, model)
-plt.title("Perceptron Decision Boundary")
-plt.show()
+# 训练感知器
+w_Perceptron, b_Perceptron = Perceptron(train_data, train_labels)
 
-#支持向量机SVM实现
-class SVM:
-    def __init__(self, learning_rate=0.01, lambda_param=0.01, n_iters=1000):
-        self.lr = learning_rate
-        self.lambda_param = lambda_param
-        self.n_iters = n_iters
-        self.weights = None
-        self.bias = None
-    def fit(self, X, y):
-        n_samples, n_features = X.shape
-        self.weights = np.zeros(n_features)
-        self.bias = 0
-        for _ in range(self.n_iters):
-            for index, x_i in enumerate(X):
-                linear_output = np.dot(x_i, self.weights) + self.bias
-                y_predicted = np.sign(linear_output)
-                if y[index] * linear_output < 1:
-                    self.weights -= self.lr * (self.lambda_param * self.weights - y[index] * x_i)
-                    self.bias -= self.lr * y[index]
-                else:
-                    self.weights -= self.lr * self.lambda_param * self.weights
-    def predict(self, X):
-        linear_output = np.dot(X, self.weights) + self.bias
-        return np.sign(linear_output)
-# 使用SVM进行训练和预测
-model = SVM()
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
+# 感知器判别函数
+def Perceptron_predict(x, w, b):
+    return 1 if np.dot(x, w) + b > 0 else 0
 
-# 可视化
-plot_decision_boundary(X, y, model)
-plt.title("SVM Decision Boundary")
-plt.show()
 
-#前馈神经网络实现
-class NeuralNetwork:
-    def __init__(self, layers=[2, 4, 1], learning_rate=0.01, n_iters=1000):
-        self.layers = layers
-        self.lr = learning_rate
-        self.n_iters = n_iters
-        self.weights = [np.random.randn(self.layers[i], self.layers[i+1]) for i in range(len(self.layers)-1)]
-        self.biases = [np.random.randn(self.layers[i+1]) for i in range(len(self.layers)-1)]
-    def fit(self, X, y):
-        for _ in range(self.n_iters):
-            for x_i, y_i in zip(X, y):
-                a = self._forward_pass(x_i)
-                self._backward_pass(a, y_i)
-    def _forward_pass(self, x):
-        a = [x]
-        for i in range(len(self.layers)-1):
-            a.append(self._activation(np.dot(a[i], self.weights[i]) + self.biases[i]))
-        return a
-    def _backward_pass(self, a, y):
-        error = y - a[-1]
-        for i in range(len(self.layers)-2, -1, -1):
-            self.weights[i] += self.lr * np.outer(a[i], error)
-            self.biases[i] += self.lr * error
-            error = np.dot(self.weights[i], error)
-    def _activation(self, x):
-        return 1 / (1 + np.exp(-x))
-    def predict(self, X):
-        a = self._forward_pass(X)
-        return np.where(a[-1] >= 0.5, 1, 0)
-# 使用神经网络进行训练和预测
-model = NeuralNetwork()
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
+# 支持向量机实现
+def SVM(X, y, epochs=100, learning_rate=0.1): 
+    n, m = X.shape
+    w = np.zeros(m)
+    b = 0
+    for _ in range(epochs):
+        for i in range(n):
+            z = np.dot(X[i], w) + b
+            if (y[i] == 1 and z <= 0) or (y[i] == 0 and z >=0): #简化版SVM，仅考虑错误分类的情况
+                w += learning_rate * y[i] * X[i]
+                b += learning_rate * y[i]
+    return w, b
 
-# 可视化
-plot_decision_boundary(X, y, model)
-plt.title("Neural Network Decision Boundary")
-plt.show()
+# 训练SVM
+w_svm, b_svm = SVM(train_data, train_labels)
+
+# SVM判别函数
+def svm_predict(x, w, b):
+    return 1 if np.dot(x, w) + b > 0 else 0
+
+# 前馈神经网络实现
+def single_layer_nn(X, y, epochs=100, learning_rate=0.1): #单层神经网络
+    n, m = X.shape
+    w = np.random.rand(m)
+    b = np.random.rand()
+    for _ in range(epochs):
+        for i in range(n):
+            z = np.dot(X[i], w) + b
+            y_pred = 1 / (1 + np.exp(-z))
+            error = y[i] - y_pred
+            w += learning_rate * error * y_pred * (1 - y_pred) * X[i]
+            b += learning_rate * error * y_pred * (1 - y_pred)
+    return w, b
+# 训练前馈神经网络
+w_nn, b_nn = single_layer_nn(train_data, train_labels)
+# 前馈神经网络判别函数
+def nn_predict(x, w, b):
+    z = np.dot(x, w) + b
+    return 1 if 1 / (1 + np.exp(-z)) > 0.5 else 0
+
+# 边界
+x_min, x_max = data[:, 0].min() - 1, data[:, 0].max() + 1
+y_min, y_max = data[:, 1].min() - 1, data[:, 1].max() + 1
+xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.1),
+                     np.arange(y_min, y_max, 0.1))
+
+# 绘图函数
+def plot_decision_boundary(w, b, title):
+    Z = np.array([Perceptron_predict(np.array([x,y]), w, b) for x, y in zip(xx.ravel(), yy.ravel())])
+    Z = Z.reshape(xx.shape)
+    plt.contourf(xx, yy, Z, alpha=0.8)
+    plt.scatter(class1[:, 0], class1[:, 1], label='Class 1')
+    plt.scatter(class2[:, 0], class2[:, 1], label='Class 2')
+    plt.title(title)
+    plt.legend()
+    plt.show()
+
+# 绘制判别结果
+plot_decision_boundary(w_Perceptron, b_Perceptron, "Perceptron")
+plot_decision_boundary(w_svm, b_svm, "SVM")
+plot_decision_boundary(w_nn, b_nn, "Single Layer NN")
